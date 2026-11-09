@@ -8,6 +8,8 @@
 
 # Production Build
 /build
+/dist
+/.astro
 
 # Misc
 .DS_Store
@@ -24,7 +26,7 @@ yarn-error.log*
 # Auto-generated index file (Optional)
 # Since you want GitHub to generate this during build, 
 # you can ignore the local copy.
-src/recipes-index.json
+
 
 # Editors
 .vscode/
@@ -34,3 +36,8 @@ src/recipes-index.json
 *.njsproj
 *.sln
 *.sw?
+# Personal chat data for the local model (health and family details) — never commit
+model/
+.old-react-app/
+/test-results
+/playwright-report

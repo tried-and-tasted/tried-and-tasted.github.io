@@ -1,33 +1,19 @@
 {
-  "name": "working-recipes",
-  "version": "1.0.0",
-  "description": "This repository hosts the recipes that works for me and for my own future reference",
+  "name": "tried-and-tasted",
+  "version": "2.0.0",
+  "description": "Recipes that work for me, tried and tasted.",
   "private": true,
-  "dependencies": {
-    "gh-pages": "^6.3.0",
-    "js-yaml": "^4.1.1",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-scripts": "5.0.1"
-  },
+  "type": "module",
   "scripts": {
-    "start": "node generate-index.js && react-scripts start",
-    "build": "node generate-index.js && react-scripts build",
-    "deploy": "gh-pages -d build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "test": "playwright test"
   },
-  "homepage": "https://malathit.github.io/working-recipes",
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
+  "dependencies": {
+    "astro": "7.4.8"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0"
   }
 }

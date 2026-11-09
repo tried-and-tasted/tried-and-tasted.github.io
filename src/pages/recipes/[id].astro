@@ -1,0 +1,214 @@
+---
+import { getCollection, type CollectionEntry } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import { formatAmount, isOil, oilEquivalents, splitStep } from '../../lib/amount';
+
+export async function getStaticPaths() {
+  return (await getCollection('recipes')).map((recipe) => ({ params: { id: recipe.id }, props: { recipe } }));
+}
+
+const { recipe } = Astro.props as { recipe: CollectionEntry<'recipes'> };
+const { title, tags, servings, ingredients, instructions } = recipe.data;
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+---
+
+<Base title={title} description={`${title} — ${ingredients.length} ingredients, serves ${servings}.`}>
+  <a class="back no-print" href={base}>← All recipes</a>
+
+  <header class="recipe-header">
+    <h1>{title}</h1>
+    <p class="tags">{tags.map((t) => <span class="tag">{t}</span>)}</p>
+  </header>
+
+  <div class="controls" data-servings={servings}>
+    <span class="label">Servings</span>
+    <div class="stepper">
+      <button type="button" class="no-print" data-step="-1" aria-label="Fewer servings">−</button>
+      <output id="servings" aria-live="polite">{servings}</output>
+      <button type="button" class="no-print" data-step="1" aria-label="More servings">+</button>
+    </div>
+    <label class="wake no-print" hidden>
+      <input type="checkbox" id="wake" />
+      Keep screen on
+    </label>
+  </div>
+
+  <section>
+    <h2>Ingredients</h2>
+    <ul class="ingredients">
+      {ingredients.map((ing) => (
+        <li>
+          <label>
+            <input type="checkbox" class="no-print" />
+            <span class="name">{ing.name}</span>
+            <span class="qty">
+              <span class="amount" data-amount={ing.amount} data-unit={ing.unit}>{formatAmount(ing.amount, ing.unit)}</span>
+              {ing.unit && ` ${ing.unit}`}
+              {isOil(ing.name, ing.unit) && (
+                <span class="equiv" data-oil-grams={ing.amount}>{oilEquivalents(ing.amount)}</span>
+              )}
+            </span>
+          </label>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <section>
+    <h2>Method</h2>
+    <ol class="steps">
+      {instructions.map((step) => {
+        const { heading, text } = splitStep(step);
+        return (
+          <li>
+            {heading && <h3>{heading}</h3>}
+            <p>{text}</p>
+          </li>
+        );
+      })}
+    </ol>
+  </section>
+</Base>
+
+<script>
+  import { formatAmount, oilEquivalents } from '../../lib/amount';
+
+  const controls = document.querySelector<HTMLElement>('.controls')!;
+  const original = Number(controls.dataset.servings);
+  const output = document.querySelector<HTMLOutputElement>('#servings')!;
+  const amounts = [...document.querySelectorAll<HTMLElement>('.amount')];
+  const oils = [...document.querySelectorAll<HTMLElement>('.equiv')];
+  let servings = original;
+
+  // Halves let a 1-serving recipe go to 1.5; whole steps above that
+  const stepFrom = (value: number, direction: number) =>
+    direction > 0 ? (value < 2 ? value + 0.5 : value + 1) : value <= 2 ? Math.max(0.5, value - 0.5) : value - 1;
+
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-step]')) {
+    button.addEventListener('click', () => {
+      servings = stepFrom(servings, Number(button.dataset.step));
+      output.textContent = formatAmount(servings);
+      for (const el of amounts) {
+        el.textContent = formatAmount((Number(el.dataset.amount) * servings) / original, el.dataset.unit);
+      }
+      for (const el of oils) {
+        el.textContent = oilEquivalents((Number(el.dataset.oilGrams) * servings) / original);
+      }
+    });
+  }
+
+  // Keep the screen awake while cooking, where the browser supports it
+  if ('wakeLock' in navigator) {
+    const toggle = document.querySelector<HTMLInputElement>('#wake')!;
+    let lock: WakeLockSentinel | null = null;
+    toggle.closest('label')!.hidden = false;
+    const acquire = async () => {
+      try {
+        lock = await navigator.wakeLock.request('screen');
+      } catch {
+        toggle.checked = false;
+      }
+    };
+    toggle.addEventListener('change', async () => {
+      if (toggle.checked) await acquire();
+      else await lock?.release();
+    });
+    // The browser drops the lock when the tab is hidden; take it back on return
+    document.addEventListener('visibilitychange', () => {
+      if (toggle.checked && document.visibilityState === 'visible') acquire();
+    });
+  }
+</script>
+
+<style>
+  .back { display: inline-block; margin: 0.5rem 0 1rem; color: var(--muted); text-decoration: none; font-size: 0.875rem; }
+  .back:hover { color: var(--accent); }
+
+  .recipe-header h1 { font-size: clamp(2rem, 7vw, 3rem); margin: 0 0 0.75rem; }
+  .tags { display: flex; flex-wrap: wrap; gap: 0.25rem; margin: 0; }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1.25rem;
+    margin: 1.5rem 0 2rem;
+    padding: 1rem 0;
+    border-block: 1px solid var(--line);
+  }
+
+  .label { font-family: var(--serif); font-style: italic; font-size: 1.125rem; }
+  .stepper { display: flex; align-items: center; gap: 0.5rem; }
+
+  .stepper button {
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: var(--surface);
+    font-size: 1.125rem;
+    cursor: pointer;
+  }
+
+  .stepper button:hover { border-color: var(--accent); }
+  output { min-width: 2.5rem; text-align: center; font-size: 1.25rem; font-weight: 600; }
+  .wake { margin-left: auto; display: flex; align-items: center; gap: 0.4rem; color: var(--muted); font-size: 0.875rem; cursor: pointer; }
+  .wake[hidden] { display: none; }
+
+  section h2 { font-size: 1.5rem; font-style: italic; font-weight: 500; margin: 0 0 1rem; }
+  section { margin-bottom: 2.5rem; }
+
+  .ingredients {
+    list-style: none;
+    margin: 0;
+    padding: 0.25rem 1.25rem;
+    border: 1px solid var(--line);
+    border-radius: 1rem;
+    background: var(--surface);
+  }
+
+  .ingredients li + li { border-top: 1px solid var(--line); }
+
+  .ingredients label {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 0.75rem;
+    align-items: baseline;
+    padding: 0.75rem 0;
+    cursor: pointer;
+  }
+
+  .ingredients input { accent-color: var(--accent); width: 1rem; height: 1rem; translate: 0 0.15rem; }
+  .ingredients label:has(input:checked) .name,
+  .ingredients label:has(input:checked) .qty { color: var(--faint); text-decoration: line-through; }
+  .qty { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+  .equiv { display: block; font-size: 0.75rem; color: var(--muted); opacity: 0.85; }
+
+  .steps { list-style: none; counter-reset: step; margin: 0; padding: 0; display: grid; gap: 1.75rem; }
+
+  .steps li {
+    counter-increment: step;
+    display: grid;
+    grid-template-columns: 2.75rem 1fr;
+    column-gap: 0.75rem;
+  }
+
+  .steps li::before {
+    content: counter(step, decimal-leading-zero);
+    grid-row: span 2;
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 1.75rem;
+    line-height: 1;
+    color: var(--faint);
+  }
+
+  .steps h3 { font-family: var(--sans); font-size: 1rem; font-weight: 600; margin: 0 0 0.25rem; }
+  .steps p { margin: 0; }
+
+  @media print {
+    .controls { border: 0; padding: 0; margin: 1rem 0; }
+    .ingredients { border: 0; padding: 0; }
+    .ingredients label { grid-template-columns: 1fr auto; }
+  }
+</style>
