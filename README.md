@@ -41,10 +41,13 @@ npm run build    # static site in dist/
 ## Tests
 
 ```sh
+npm test                          # unit tests (seconds)
 npx playwright install chromium   # once
-npm test
+npm run test:e2e                  # browser smoke tests on the built site
 ```
 
-The end-to-end tests in `e2e/` build the site and open it in Chrome at desktop and phone sizes: every recipe page must load with valid amounts and no browser errors, and search, filters, the servings scaler and ticking off ingredients must work.
+The unit tests in `tests/` cover amount formatting, oil conversions, servings scaling and the search filters, and check every recipe file against the rules above: numeric amounts, known tags, oil in grams, spices in spoons, English text and no personal details. A failure names the file and ingredient.
 
-Pushing to `main` runs the tests and publishes the site through GitHub Actions (`.github/workflows/deploy.yml`) only if they all pass. Pull requests are tested but not published.
+The smoke tests in `e2e/` are the fallback: they build the site and check in Chrome that every recipe page is published and the home page, filters and recipe controls work without browser errors.
+
+Pushing to `main` runs both and publishes the site through GitHub Actions (`.github/workflows/deploy.yml`) only if they pass. Pull requests are tested but not published.

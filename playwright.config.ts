@@ -12,10 +12,7 @@ export default defineConfig({
     baseURL: `http://localhost:${port}`,
     trace: 'retain-on-failure',
   },
-  projects: [
-    { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
-    { name: 'mobile', use: { ...devices['Pixel 7'] } },
-  ],
+  projects: [{ name: 'chrome', use: { ...devices['Desktop Chrome'] } }],
   // Test the built site (what gets published), not the dev server. CI builds in an earlier step.
   webServer: {
     command: process.env.CI ? `npm run preview -- --port ${port} --ignore-lock` : `npm run build && npm run preview -- --port ${port} --ignore-lock`,

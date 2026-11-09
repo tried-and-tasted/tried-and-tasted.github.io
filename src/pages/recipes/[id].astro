@@ -72,6 +72,7 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
 
 <script>
   import { formatAmount, oilEquivalents } from '../../lib/amount';
+  import { scaleAmount, stepServings } from '../../lib/scale';
 
   const controls = document.querySelector<HTMLElement>('.controls')!;
   const original = Number(controls.dataset.servings);
@@ -80,19 +81,15 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
   const oils = [...document.querySelectorAll<HTMLElement>('.equiv')];
   let servings = original;
 
-  // Halves let a 1-serving recipe go to 1.5; whole steps above that
-  const stepFrom = (value: number, direction: number) =>
-    direction > 0 ? (value < 2 ? value + 0.5 : value + 1) : value <= 2 ? Math.max(0.5, value - 0.5) : value - 1;
-
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-step]')) {
     button.addEventListener('click', () => {
-      servings = stepFrom(servings, Number(button.dataset.step));
+      servings = stepServings(servings, Number(button.dataset.step) as 1 | -1);
       output.textContent = formatAmount(servings);
       for (const el of amounts) {
-        el.textContent = formatAmount((Number(el.dataset.amount) * servings) / original, el.dataset.unit);
+        el.textContent = formatAmount(scaleAmount(Number(el.dataset.amount), servings, original), el.dataset.unit);
       }
       for (const el of oils) {
-        el.textContent = oilEquivalents((Number(el.dataset.oilGrams) * servings) / original);
+        el.textContent = oilEquivalents(scaleAmount(Number(el.dataset.oilGrams), servings, original));
       }
     });
   }

@@ -1,18 +1,13 @@
 ---
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
+import { TAG_GROUPS } from '../lib/filter';
 
 const recipes = (await getCollection('recipes')).sort((a, b) => a.data.title.localeCompare(b.data.title));
 const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
 
-// Filter chips, grouped so choices within a group widen the list and across groups narrow it
-const GROUPS: [string, string[]][] = [
-  ['Cuisine', ['South Indian', 'North Indian', 'Indian', 'International']],
-  ['Dish', ['Curry', 'Rice', 'Soup', 'Pasta & Noodles', 'Breakfast', 'Bread', 'Main', 'Side', 'Chutney', 'Snack', 'Sweet', 'Drink']],
-  ['Method & diet', ['Pressure cooker', 'Air fryer', 'Vegetarian']],
-];
 const used = new Set(recipes.flatMap((r) => r.data.tags));
-const groups = GROUPS.map(([name, tags]) => [name, tags.filter((t) => used.has(t))] as const);
+const groups = TAG_GROUPS.map(([name, tags]) => [name, tags.filter((t) => used.has(t))] as const);
 const searchText = (r: (typeof recipes)[number]) =>
   [r.data.title, ...r.data.tags, ...r.data.ingredients.map((i) => i.name)].join(' ').toLowerCase();
 ---
@@ -57,6 +52,8 @@ const searchText = (r: (typeof recipes)[number]) =>
 </Base>
 
 <script>
+  import { matchesFilters, searchWords } from '../lib/filter';
+
   const search = document.querySelector<HTMLInputElement>('#search')!;
   const cards = [...document.querySelectorAll<HTMLLIElement>('.grid li')];
   const chips = [...document.querySelectorAll<HTMLButtonElement>('.chip')];
@@ -64,16 +61,13 @@ const searchText = (r: (typeof recipes)[number]) =>
   const empty = document.querySelector<HTMLElement>('#empty')!;
 
   function update() {
-    const words = search.value.toLowerCase().split(/\s+/).filter(Boolean);
-    const groups = [...document.querySelectorAll('.group')].map((group) =>
+    const words = searchWords(search.value);
+    const selected = [...document.querySelectorAll('.group')].map((group) =>
       [...group.querySelectorAll<HTMLButtonElement>('.chip[aria-pressed="true"]')].map((chip) => chip.dataset.tag!),
     );
     let shown = 0;
     for (const card of cards) {
-      const tags: string[] = JSON.parse(card.dataset.tags!);
-      const matches =
-        words.every((word) => card.dataset.search!.includes(word)) &&
-        groups.every((selected) => selected.length === 0 || selected.some((tag) => tags.includes(tag)));
+      const matches = matchesFilters(card.dataset.search!, JSON.parse(card.dataset.tags!), words, selected);
       card.hidden = !matches;
       if (matches) shown++;
     }
